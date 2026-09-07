@@ -11,13 +11,12 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "node-telegram-bot-api": "^0.66.0",
-    "node-cron": "^3.0.3",
-    "axios": "^1.7.7"
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.0.0"
   }
 }

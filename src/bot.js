@@ -1,8 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const dotenv = require('dotenv');
 const cron = require('node-cron');
-const axios = require('axios'); // <--- YANGI
-const { words, getDailyWord, getWordOfDay } = require('./words');
+const { getWordOfDay } = require('./words');
 const { setupHandlers } = require('./handlers');
 
 dotenv.config();
@@ -16,14 +15,38 @@ if (!token) {
 }
 
 // Botni ishga tushirish
-const bot = new TelegramBot(token, { polling: true });
+const bot = new TelegramBot(token, { 
+  polling: {
+    interval: 300,
+    autoStart: true,
+    params: {
+      timeout: 10
+    }
+  }
+});
 
-console.log('🚀 Bot ishga tushdi!');
+console.log('🚀 Bot ishga tushmoqda...');
+
+// Webhook'ni o'chirish (muhim!)
+bot.deleteWebHook().then(() => {
+  console.log('✅ Webhook o\'chirildi');
+  
+  // Botni ishga tushirish
+  bot.startPolling().then(() => {
+    console.log('✅ Polling boshlandi');
+    console.log('🤖 Bot ishga tushdi!');
+  }).catch(err => {
+    console.error('❌ Polling xatosi:', err);
+  });
+  
+}).catch(err => {
+  console.error('❌ Webhook o\'chirishda xatolik:', err);
+});
 
 // Barcha handlerlarni ulash
 setupHandlers(bot);
 
-// Kunlik so'z yuborish (har kuni soat 09:00 da)
+// Kunlik so'z yuborish
 cron.schedule('0 9 * * *', async () => {
   try {
     const word = getWordOfDay();
@@ -32,7 +55,6 @@ cron.schedule('0 9 * * *', async () => {
                    `📝 ${word.example}` +
                    (word.translation ? `\n🔄 Tarjimasi: ${word.translation}` : '');
     
-    // Barcha foydalanuvchilarga yuborish (siz admin orqali boshqarasiz)
     await bot.sendMessage(adminId, message, { parse_mode: 'Markdown' });
     console.log('✅ Kunlik so\'z yuborildi');
   } catch (error) {
@@ -40,20 +62,18 @@ cron.schedule('0 9 * * *', async () => {
   }
 });
 
-// Self-ping (Render'da uxlab qolmasligi uchun) - UPTIMEROBOT O'RNIGA
-cron.schedule('*/5 * * * *', async () => {
-  try {
-    const url = process.env.RENDER_URL || 'https://your-bot-name.onrender.com';
-    await axios.get(url);
-    console.log('✅ Ping yuborildi');
-  } catch (error) {
-    console.log('⏳ Ping xatosi (bu normal)');
+// Xatoliklarni ushlash
+bot.on('polling_error', (error) => {
+  console.error('❌ Polling xatosi:', error.message);
+  if (error.response && error.response.body) {
+    console.error('📨 Telegram javobi:', error.response.body);
   }
 });
 
-// Botni ishga tushirish
-bot.on('polling_error', (error) => {
-  console.error('Polling xatosi:', error);
+bot.on('error', (error) => {
+  console.error('❌ Bot xatosi:', error);
 });
+
+console.log('⏳ Bot sozlanmoqda...');
 
 module.exports = bot;
