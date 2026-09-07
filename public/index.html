@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>Maktab Dars Jadvali</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' }
+  </script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    .animate-slide-down { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    
+    /* Telefon uchun maxsus sozlamalar */
+    @media (max-width: 640px) {
+      .lesson-card {
+        min-height: 60px !important;
+        padding: 8px 10px !important;
+      }
+      .lesson-card .subject-text {
+        font-size: 13px !important;
+      }
+      .lesson-card .teacher-text {
+        font-size: 11px !important;
+      }
+      .day-card {
+        padding: 12px !important;
+      }
+      .day-title {
+        font-size: 16px !important;
+        margin-bottom: 8px !important;
+      }
+      .hour-badge {
+        font-size: 10px !important;
+      }
+      .room-badge {
+        font-size: 10px !important;
+        padding: 1px 6px !important;
+      }
+      .control-btn {
+        font-size: 11px !important;
+        padding: 4px 8px !important;
+      }
+      .header-title {
+        font-size: 18px !important;
+      }
+      .header-badge {
+        font-size: 10px !important;
+        padding: 2px 8px !important;
+      }
+      .header-controls {
+        gap: 6px !important;
+        flex-wrap: wrap !important;
+      }
+      .header-controls select {
+        font-size: 13px !important;
+        padding: 6px 8px !important;
+      }
+      .header-controls button {
+        font-size: 12px !important;
+        padding: 6px 10px !important;
+      }
+      .modal-content {
+        margin: 10px !important;
+        padding: 16px !important;
+        max-width: 100% !important;
+      }
+      .modal-content h3 {
+        font-size: 18px !important;
+      }
+      .modal-content input {
+        font-size: 14px !important;
+        padding: 10px !important;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .lesson-card {
+        min-height: 50px !important;
+        padding: 6px 8px !important;
+      }
+      .lesson-card .subject-text {
+        font-size: 12px !important;
+      }
+      .lesson-card .teacher-text {
+        font-size: 10px !important;
+      }
+      .day-card {
+        padding: 10px !important;
+      }
+      .day-title {
+        font-size: 14px !important;
+      }
+    }
+
+    /* Scrollni silliq qilish */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Telefon ekranida 2 ustunli grid */
+    @media (max-width: 768px) {
+      .timetable-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .timetable-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+      }
+    }
+    
+    /* Kichik telefonlarda 2 ustun */
+    @media (max-width: 380px) {
+      .timetable-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 4px !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-white min-h-screen p-2 md:p-4 lg:p-6 transition-colors duration-300">
+
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 bg-white dark:bg-gray-800 p-3 md:p-4 rounded-xl shadow-md transition-all">
+      <div class="flex items-center gap-2 cursor-pointer select-none group w-full sm:w-auto" id="secretHeader">
+        <h1 class="header-title text-xl md:text-2xl font-bold group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">📚 Maktab Dars Jadvali</h1>
+        <span id="roleBadge" class="header-badge text-[10px] md:text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 font-semibold transition-all whitespace-nowrap">
+          👁️ O'quvchi
+        </span>
+      </div>
+      
+      <div class="header-controls flex items-center gap-2 flex-wrap w-full sm:w-auto">
+        <label for="classSelect" class="font-semibold text-sm hidden sm:inline">Sinf:</label>
+        <select id="classSelect" class="flex-1 sm:flex-none p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 font-bold text-blue-600 dark:text-blue-400 cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm md:text-base">
+        </select>
+
+        <button id="themeToggleBtn" class="px-3 py-2 text-sm rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 active:scale-95 transition-all">
+          🌙
+        </button>
+
+        <div class="relative inline-block text-left group">
+          <button id="downloadBtn" class="px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 font-semibold transition-all shadow-md flex items-center gap-1">
+            📥
+            <span class="hidden sm:inline">Yuklab olish</span>
+          </button>
+          <div class="hidden group-hover:block absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border dark:border-gray-700 z-50 p-1 animate-fade-in">
+            <button onclick="downloadAsImage()" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-2">
+              🖼️ Rasm (PNG)
+            </button>
+            <button onclick="downloadAsJSON()" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-2">
+              📄 Zaxira (JSON)
+            </button>
+          </div>
+        </div>
+
+        <button id="aiUploadBtn" class="hidden px-3 py-2 text-sm rounded-lg bg-purple-600 text-white hover:bg-purple-700 active:scale-95 font-semibold transition-all shadow-md items-center gap-1">
+          🤖
+          <span class="hidden sm:inline">AI yuklash</span>
+        </button>
+        <input type="file" id="aiFileInput" accept="image/*,application/pdf" class="hidden">
+
+        <button id="aiUploadAllBtn" class="hidden px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 font-semibold transition-all shadow-md items-center gap-1">
+          🏫
+          <span class="hidden sm:inline">Butun maktab (PDF)</span>
+        </button>
+        <input type="file" id="aiFileInputAll" accept="application/pdf,image/*" class="hidden">
+
+        <button id="logoutBtn" class="hidden px-3 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 active:scale-95 font-semibold transition-all shadow-md">
+          🚪
+          <span class="hidden sm:inline">Chiqish</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Dars jadvali grid -->
+    <div id="timetableGrid" class="timetable-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-4"></div>
+  </div>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white dark:bg-gray-800 p-5 md:p-6 rounded-2xl max-w-sm w-full shadow-2xl animate-slide-down modal-content">
+      <h3 class="text-lg md:text-xl font-bold mb-4">🔑 Admin kirish</h3>
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-sm mb-1 font-medium">Parol:</label>
+          <input type="password" id="passwordInput" required class="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 outline-none text-base" placeholder="Parolni kiriting...">
+          <p id="loginError" class="text-xs text-red-500 mt-1.5 hidden animate-pulse">Parol noto'g'ri!</p>
+        </div>
+        <div class="flex flex-col sm:flex-row justify-end gap-2">
+          <button type="button" id="closeLoginBtn" class="px-4 py-2 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 w-full sm:w-auto">Bekor qilish</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:scale-95 shadow-md w-full sm:w-auto">Kirish</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dars tahrirlash Modal -->
+  <div id="lessonModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white dark:bg-gray-800 p-5 md:p-6 rounded-2xl max-w-md w-full shadow-2xl animate-slide-down modal-content">
+      <h3 id="modalTitle" class="text-lg md:text-xl font-bold mb-4">Darsni tahrirlash</h3>
+      <form id="lessonForm" class="space-y-4">
+        <div>
+          <label class="block text-sm mb-1 font-medium">Fan nomi *</label>
+          <input type="text" id="subjectInput" required class="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 outline-none text-base" placeholder="Masalan: Matematika">
+        </div>
+        <div>
+          <label class="block text-sm mb-1 font-medium">O'qituvchi</label>
+          <input type="text" id="teacherInput" class="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 outline-none text-base" placeholder="O'qituvchi ismi">
+        </div>
+        <div>
+          <label class="block text-sm mb-1 font-medium">Xona</label>
+          <input type="text" id="roomInput" class="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 outline-none text-base" placeholder="Xona raqami">
+        </div>
+
+        <div class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-4 border-t dark:border-gray-700">
+          <button type="button" id="deleteBtn" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 active:scale-95 shadow-md w-full sm:w-auto order-2 sm:order-1">🗑️ O'chirish</button>
+          <div class="flex flex-col sm:flex-row gap-2 order-1 sm:order-2 w-full sm:w-auto">
+            <button type="button" id="closeModalBtn" class="px-4 py-2 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95 w-full sm:w-auto">Bekor qilish</button>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:scale-95 shadow-md w-full sm:w-auto">💾 Saqlash</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let adminToken = localStorage.getItem('adminToken') || null;
+    const days = ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma'];
+    let selectedClass = '5A';
+    let currentCell = { day: '', lessonIndex: null };
+    let serverData = { timetable: {}, lessonCounts: {} };
+
+    function generateClasses() {
+      return [
+        '5A', '5B',
+        '6A', '6B',
+        '7A', '7B', '7D',
+        '8A', '8B', '8D',
+        '9A', '9B', '9D', '9A(U)',
+        '10A', '10B', '10D', '10A(U)', '10B(U)',
+        '11A', '11B', '11D', '11A(U)'
+      ];
+    }
+
+    const classList = generateClasses();
+
+    const classSelect = document.getElementById('classSelect');
+    const timetableGrid = document.getElementById('timetableGrid');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const roleBadge = document.getElementById('roleBadge');
+    const secretHeader = document.getElementById('secretHeader');
+    const aiUploadBtn = document.getElementById('aiUploadBtn');
+    const aiFileInput = document.getElementById('aiFileInput');
+    const aiUploadAllBtn = document.getElementById('aiUploadAllBtn');
+    const aiFileInputAll = document.getElementById('aiFileInputAll');
+
+    const loginModal = document.getElementById('loginModal');
+    const loginForm = document.getElementById('loginForm');
+    const passwordInput = document.getElementById('passwordInput');
+    const loginError = document.getElementById('loginError');
+    const closeLoginBtn = document.getElementById('closeLoginBtn');
+
+    const lessonModal = document.getElementById('lessonModal');
+    const lessonForm = document.getElementById('lessonForm');
+    const modalTitle = document.getElementById('modalTitle');
+    const subjectInput = document.getElementById('subjectInput');
+    const teacherInput = document.getElementById('teacherInput');
+    const roomInput = document.getElementById('roomInput');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+
+    async function fetchTimetable() {
+      try {
+        const res = await fetch('/api/timetable');
+        serverData = await res.json();
+        renderTimetable();
+      } catch (err) {
+        console.error("Ma'lumot olishda xato:", err);
+      }
+    }
+
+    function init() {
+      classList.forEach(cls => {
+        const option = document.createElement('option');
+        option.value = cls;
+        option.textContent = `${cls} sinf`;
+        classSelect.appendChild(option);
+      });
+
+      fetchTimetable();
+    }
+
+    function renderTimetable() {
+      timetableGrid.innerHTML = '';
+      const isAdmin = !!adminToken;
+
+      if (isAdmin) {
+        roleBadge.className = "header-badge text-[10px] md:text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 font-semibold whitespace-nowrap";
+        roleBadge.textContent = "⚡ Admin";
+        logoutBtn.classList.remove('hidden');
+        aiUploadBtn.classList.remove('hidden');
+        aiUploadBtn.classList.add('flex');
+        aiUploadAllBtn.classList.remove('hidden');
+        aiUploadAllBtn.classList.add('flex');
+      } else {
+        roleBadge.className = "header-badge text-[10px] md:text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 font-semibold whitespace-nowrap";
+        roleBadge.textContent = "👁️ O'quvchi";
+        logoutBtn.classList.add('hidden');
+        aiUploadBtn.classList.add('hidden');
+        aiUploadBtn.classList.remove('flex');
+        aiUploadAllBtn.classList.add('hidden');
+        aiUploadAllBtn.classList.remove('flex');
+      }
+
+      days.forEach((day, index) => {
+        const dayCard = document.createElement('div');
+        dayCard.className = 'day-card bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl shadow-md hover:shadow-lg p-3 md:p-4 flex flex-col justify-between animate-fade-in transition-all duration-300';
+        dayCard.style.animationDelay = `${index * 0.08}s`;
+        
+        const currentCount = serverData.lessonCounts?.[selectedClass]?.[day] || 6;
+
+        let lessonsHTML = '';
+        for (let i = 0; i < currentCount; i++) {
+          const lesson = serverData.timetable?.[selectedClass]?.[day]?.[i];
+          const hasData = lesson && lesson.subject && lesson.subject.trim() !== '';
+
+          const cursorClass = isAdmin ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] hover:border-blue-500 hover:shadow-md' : 'cursor-default';
+          const clickHandler = isAdmin ? `onclick="openModal('${day}', ${i})"` : '';
+
+          lessonsHTML += `
+            <div ${clickHandler} 
+                 class="lesson-card p-2 md:p-3 rounded-xl border-2 ${hasData ? 'border-blue-500/30 bg-blue-50/50 dark:bg-gray-700/40 dark:border-blue-400/30' : 'border-dashed border-gray-300 dark:border-gray-600'} ${cursorClass} transition-all duration-200 min-h-[60px] md:min-h-[80px] flex flex-col justify-between mb-2 md:mb-3">
+              <div class="flex justify-between items-start">
+                <span class="hour-badge text-[10px] md:text-xs font-bold text-gray-400">${i + 1}</span>
+                ${lesson?.room ? `<span class="room-badge text-[10px] md:text-xs bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded-md font-medium">${lesson.room}</span>` : ''}
+              </div>
+              ${hasData ? `
+                <div class="mt-1">
+                  <div class="subject-text font-bold text-sm md:text-base leading-tight text-gray-800 dark:text-gray-100">${lesson.subject}</div>
+                  <div class="teacher-text text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">${lesson.teacher || ''}</div>
+                </div>
+              ` : `
+                <div class="text-[10px] md:text-xs text-gray-400 text-center py-1 font-medium">${isAdmin ? "+ Qo'shish" : '—'}</div>
+              `}
+            </div>
+          `;
+        }
+
+        const adminControlsHTML = isAdmin ? `
+          <div class="flex gap-2 pt-2 md:pt-3 border-t dark:border-gray-700 mt-1">
+            <button onclick="changeLessonCount('${day}', 1)" class="control-btn flex-1 py-1.5 px-2 text-[10px] md:text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 rounded-lg hover:bg-blue-200 active:scale-95 font-semibold transition-all">
+              +1
+            </button>
+            ${currentCount > 1 ? `
+              <button onclick="changeLessonCount('${day}', -1)" class="control-btn py-1.5 px-3 text-[10px] md:text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 active:scale-95 font-semibold transition-all">
+                −
+              </button>
+            ` : ''}
+          </div>
+        ` : '';
+
+        dayCard.innerHTML = `
+          <div>
+            <h2 class="day-title text-base md:text-lg font-bold text-center mb-2 md:mb-3 pb-1 md:pb-2 border-b dark:border-gray-700 text-blue-600 dark:text-blue-400 tracking-wide">${day}</h2>
+            <div>${lessonsHTML}</div>
+          </div>
+          ${adminControlsHTML}
+        `;
+
+        timetableGrid.appendChild(dayCard);
+      });
+    }
+
+    aiUploadBtn.addEventListener('click', () => aiFileInput.click());
+
+    aiFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file || !adminToken) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('className', selectedClass);
+
+      const originalBtnText = aiUploadBtn.innerHTML;
+      aiUploadBtn.innerHTML = "⏳";
+      aiUploadBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/timetable/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          },
+          body: formData
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          alert(result.message);
+          fetchTimetable();
+        } else {
+          alert(result.error || "Xatolik yuz berdi!");
+        }
+      } catch (err) {
+        alert("Server bilan bog'lanishda xatolik!");
+      } finally {
+        aiUploadBtn.innerHTML = originalBtnText;
+        aiUploadBtn.disabled = false;
+        aiFileInput.value = '';
+      }
+    });
+
+    aiUploadAllBtn.addEventListener('click', () => aiFileInputAll.click());
+
+    aiFileInputAll.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file || !adminToken) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const originalBtnText = aiUploadAllBtn.innerHTML;
+      aiUploadAllBtn.innerHTML = "⏳";
+      aiUploadAllBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/timetable/upload-all', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          },
+          body: formData
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          alert(result.message);
+          fetchTimetable();
+        } else {
+          alert(result.error || "Xatolik yuz berdi!");
+        }
+      } catch (err) {
+        alert("Server bilan bog'lanishda xatolik!");
+      } finally {
+        aiUploadAllBtn.innerHTML = originalBtnText;
+        aiUploadAllBtn.disabled = false;
+        aiFileInputAll.value = '';
+      }
+    });
+
+    function openLoginModal() {
+      if (adminToken) return;
+      loginError.classList.add('hidden');
+      passwordInput.value = '';
+      loginModal.classList.remove('hidden');
+      setTimeout(() => passwordInput.focus(), 100);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        openLoginModal();
+      }
+    });
+
+    let clickCount = 0;
+    let clickTimer = null;
+    secretHeader.addEventListener('click', () => {
+      clickCount++;
+      if (clickCount === 1) {
+        clickTimer = setTimeout(() => { clickCount = 0; }, 1000);
+      } else if (clickCount === 3) {
+        clearTimeout(clickTimer);
+        clickCount = 0;
+        openLoginModal();
+      }
+    });
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: passwordInput.value })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          adminToken = data.token;
+          localStorage.setItem('adminToken', adminToken);
+          loginModal.classList.add('hidden');
+          renderTimetable();
+        } else {
+          loginError.classList.remove('hidden');
+        }
+      } catch (err) {
+        alert("Server bilan bog'lanishda xato!");
+      }
+    });
+
+    closeLoginBtn.addEventListener('click', () => loginModal.classList.add('hidden'));
+
+    logoutBtn.addEventListener('click', () => {
+      adminToken = null;
+      localStorage.removeItem('adminToken');
+      renderTimetable();
+    });
+
+    window.changeLessonCount = async function(day, delta) {
+      if (!adminToken) return;
+      const currentCount = serverData.lessonCounts?.[selectedClass]?.[day] || 6;
+      const newCount = Math.max(1, currentCount + delta);
+
+      await fetch('/api/timetable/count', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({ className: selectedClass, day, count: newCount })
+      });
+
+      fetchTimetable();
+    };
+
+    window.openModal = function(day, lessonIndex) {
+      if (!adminToken) return;
+      currentCell = { day, lessonIndex };
+      const lesson = serverData.timetable?.[selectedClass]?.[day]?.[lessonIndex] || {};
+
+      modalTitle.textContent = `✏️ ${day}, ${lessonIndex + 1}-soat`;
+      subjectInput.value = lesson.subject || '';
+      teacherInput.value = lesson.teacher || '';
+      roomInput.value = lesson.room || '';
+
+      lessonModal.classList.remove('hidden');
+      setTimeout(() => subjectInput.focus(), 100);
+    };
+
+    closeModalBtn.addEventListener('click', () => lessonModal.classList.add('hidden'));
+
+    lessonForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!adminToken) return;
+
+      const { day, lessonIndex } = currentCell;
+
+      await fetch('/api/timetable/lesson', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: JSON.stringify({
+          className: selectedClass,
+          day,
+          lessonIndex,
+          lessonData: {
+            subject: subjectInput.value.trim(),
+            teacher: teacherInput.value.trim(),
+            room: roomInput.value.trim()
+          }
+        })
+      });
+
+      lessonModal.classList.add('hidden');
+      fetchTimetable();
+    });
+
+    deleteBtn.addEventListener('click', async () => {
+      if (!adminToken) return;
+      const { day, lessonIndex } = currentCell;
+
+      if (confirm(`"${day}" kuni ${lessonIndex + 1}-soatni o'chirishni xohlaysizmi?`)) {
+        await fetch('/api/timetable/lesson', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminToken}`
+          },
+          body: JSON.stringify({ className: selectedClass, day, lessonIndex })
+        });
+
+        lessonModal.classList.add('hidden');
+        fetchTimetable();
+      }
+    });
+
+    classSelect.addEventListener('change', (e) => {
+      selectedClass = e.target.value;
+      renderTimetable();
+    });
+
+    themeToggleBtn.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      themeToggleBtn.textContent = isDark ? '☀️' : '🌙';
+    });
+
+    // Telefonda modal yopish uchun tashqariga bosganda
+    loginModal.addEventListener('click', (e) => {
+      if (e.target === loginModal) loginModal.classList.add('hidden');
+    });
+    
+    lessonModal.addEventListener('click', (e) => {
+      if (e.target === lessonModal) lessonModal.classList.add('hidden');
+    });
+
+    async function downloadAsImage() {
+      const element = document.getElementById('timetableGrid');
+      const classText = document.getElementById('classSelect').value;
+
+      const downloadBtn = document.getElementById('downloadBtn');
+      const originalText = downloadBtn.innerHTML;
+      downloadBtn.innerHTML = '⏳';
+      downloadBtn.disabled = true;
+
+      try {
+        const canvas = await html2canvas(element, {
+          scale: window.innerWidth < 768 ? 1.5 : 2,
+          useCORS: true,
+          backgroundColor: document.documentElement.classList.contains('dark') ? '#111827' : '#f3f4f6',
+          width: element.scrollWidth,
+          height: element.scrollHeight,
+          windowWidth: element.scrollWidth,
+          windowHeight: element.scrollHeight
+        });
+
+        const link = document.createElement('a');
+        link.download = `Dars_Jadvali_${classText}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (err) {
+        alert("Rasmga aylantirishda xatolik yuz berdi!");
+        console.error(err);
+      } finally {
+        downloadBtn.innerHTML = originalText;
+        downloadBtn.disabled = false;
+      }
+    }
+
+    function downloadAsJSON() {
+      const classText = document.getElementById('classSelect').value;
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(serverData, null, 2));
+      
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `Dars_Jadvali_${classText}_zaxira.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    init();
+  </script>
+  
+</body>
+</html>
