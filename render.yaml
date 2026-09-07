@@ -2,13 +2,16 @@ services:
   - type: web
     name: english-learning-bot
     env: node
-    buildCommand: npm install
+    buildCommand: npm install && npm install --no-audit --no-fund
     startCommand: npm start
     envVars:
       - key: BOT_TOKEN
         sync: false
       - key: ADMIN_ID
         sync: false
+      - key: RENDER_URL
+        sync: false
     healthCheckPath: /
     autoDeploy: true
     plan: free
+    nodeVersion: 20.0.0
