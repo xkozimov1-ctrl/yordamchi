@@ -1,0 +1,14 @@
+# Telegram BotFather'dan olingan token
+BOT_TOKEN=your_telegram_bot_token_here
+
+# Sizning shaxsiy Telegram ID raqamingiz (masalan @userinfobot orqali bilib oling)
+ADMIN_ID=123456789
+
+# Render.com avtomatik beradigan port (lokal test uchun 3000)
+PORT=3000
+
+# Render.com'dagi ilovangizning tashqi URL manzili (self-ping uchun kerak)
+RENDER_EXTERNAL_URL=https://your-app-name.onrender.com
+
+# Kunlik so'z yuborish uchun vaqt zonasi
+TIMEZONE=Asia/Tashkent
