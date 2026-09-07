@@ -5,9 +5,9 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI } from '@google/genai';
 import { initBot } from './bot.js';
 import { readData, writeData } from './db.js';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -24,13 +24,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Multer (Xotirada fayllarni saqlash)
+// Multer
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { fileSize: 20 * 1024 * 1024 }
 });
 
-// JWT Tokenni tekshirish Middleware
+// JWT Middleware
 function authenticateToken(req, res, next) {
   try {
     const authHeader = req.headers['authorization'];
@@ -73,15 +73,19 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 // 2a. Barcha sinflar uchun to'liq ma'lumotni olish
-// XATOLIK EDI: index.html "fetch('/api/timetable')" (sinf nomisiz) so'rov yuborardi,
-// lekin bunday endpoint mavjud emas edi — faqat "/api/timetable/:className" bor edi.
-// Shu sabab sahifa hech qachon ma'lumot ololmasdi.
 app.get('/api/timetable', async (req, res) => {
   try {
     const data = await readData();
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: "Ma'lumotlarni yuklashda xatolik!" });
+    console.error("Error reading data:", err);
+    // Agar Supabase ishlamasa, local fayldan o'qishga harakat qilamiz
+    try {
+      const localData = JSON.parse(fs.readFileSync('./timetable.json', 'utf8'));
+      res.json(localData);
+    } catch (e) {
+      res.status(500).json({ error: "Ma'lumotlarni yuklashda xatolik!", details: err.message });
+    }
   }
 });
 
@@ -117,14 +121,15 @@ app.post('/api/timetable/save', authenticateToken, async (req, res) => {
     data.lessonCounts[className] = lessonCounts;
 
     await writeData(data);
+    // Local faylga ham yozamiz (zaxira)
+    fs.writeFileSync('./timetable.json', JSON.stringify(data, null, 2));
     res.json({ success: true, message: "Dars jadvali muvaffaqiyatli saqlandi!" });
   } catch (err) {
     res.status(500).json({ error: "Saqlashda xatolik yuz berdi!" });
   }
 });
 
-// 3b. Bitta kunning soatlar sonini o'zgartirish (+1 soat / -1 soat tugmalari)
-// XATOLIK EDI: index.html "/api/timetable/count" ga POST yuborardi, bunday endpoint umuman yo'q edi.
+// 3b. Bitta kunning soatlar sonini o'zgartirish
 app.post('/api/timetable/count', authenticateToken, async (req, res) => {
   try {
     const { className, day, count } = req.body || {};
@@ -138,14 +143,14 @@ app.post('/api/timetable/count', authenticateToken, async (req, res) => {
     data.lessonCounts[className][day] = Math.max(1, count);
 
     await writeData(data);
+    fs.writeFileSync('./timetable.json', JSON.stringify(data, null, 2));
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: "Soatlar sonini yangilashda xatolik!" });
   }
 });
 
-// 3c. Bitta darsni qo'shish/tahrirlash (jadval katagi bosilganda ochiladigan modal)
-// XATOLIK EDI: index.html "/api/timetable/lesson" ga POST yuborardi, bunday endpoint umuman yo'q edi.
+// 3c. Bitta darsni qo'shish/tahrirlash
 app.post('/api/timetable/lesson', authenticateToken, async (req, res) => {
   try {
     const { className, day, lessonIndex, lessonData } = req.body || {};
@@ -158,13 +163,13 @@ app.post('/api/timetable/lesson', authenticateToken, async (req, res) => {
     if (!data.timetable[className]) data.timetable[className] = {};
     if (!Array.isArray(data.timetable[className][day])) data.timetable[className][day] = [];
 
-    // lessonIndex'gacha bo'lgan bo'sh o'rinlarni to'ldirib qo'yamiz
     while (data.timetable[className][day].length <= lessonIndex) {
       data.timetable[className][day].push(null);
     }
     data.timetable[className][day][lessonIndex] = lessonData;
 
     await writeData(data);
+    fs.writeFileSync('./timetable.json', JSON.stringify(data, null, 2));
     res.json({ success: true, message: "Dars saqlandi!" });
   } catch (err) {
     res.status(500).json({ error: "Darsni saqlashda xatolik!" });
@@ -172,7 +177,6 @@ app.post('/api/timetable/lesson', authenticateToken, async (req, res) => {
 });
 
 // 3d. Bitta darsni o'chirish
-// XATOLIK EDI: index.html "DELETE /api/timetable/lesson" yuborardi, bunday endpoint umuman yo'q edi.
 app.delete('/api/timetable/lesson', authenticateToken, async (req, res) => {
   try {
     const { className, day, lessonIndex } = req.body || {};
@@ -184,6 +188,7 @@ app.delete('/api/timetable/lesson', authenticateToken, async (req, res) => {
     if (data.timetable?.[className]?.[day]?.[lessonIndex] !== undefined) {
       data.timetable[className][day][lessonIndex] = null;
       await writeData(data);
+      fs.writeFileSync('./timetable.json', JSON.stringify(data, null, 2));
     }
 
     res.json({ success: true, message: "Dars o'chirildi!" });
@@ -192,7 +197,7 @@ app.delete('/api/timetable/lesson', authenticateToken, async (req, res) => {
   }
 });
 
-// 4. Gemini AI orqali faylni/rasmni tahlil qilib dars jadvaliga o'tkazish
+// 4. Gemini AI orqali faylni tahlil qilish
 app.post('/api/timetable/upload', authenticateToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -206,9 +211,11 @@ app.post('/api/timetable/upload', authenticateToken, upload.single('file'), asyn
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: "Render platformasida GEMINI_API_KEY sozlanmagan!" });
+      return res.status(500).json({ error: "GEMINI_API_KEY sozlanmagan!" });
     }
 
+    // Gemini uchun Google GenAI kutubxonasini import qilamiz
+    const { GoogleGenAI } = await import('@google/genai');
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `Ushbu rasmdagi/hujjatdagi "${className}" sinfining dars jadvalini aniq o'qib oling.
@@ -253,12 +260,119 @@ Ahamiyat bering:
     });
 
     await writeData(data);
+    fs.writeFileSync('./timetable.json', JSON.stringify(data, null, 2));
     res.json({ success: true, message: `${className} sinfi uchun jadval AI orqali to'ldirildi!` });
 
   } catch (error) {
     console.error("AI Upload xatosi:", error);
     res.status(500).json({ 
       error: error.message || "Faylni AI orqali tahlil qilishda xatolik yuz berdi." 
+    });
+  }
+});
+
+// 4b. Gemini AI orqali BUTUN MAKTAB jadvalini (bir nechta sinf) bitta faylda tahlil qilish
+app.post('/api/timetable/upload-all', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Fayl yuklanmadi!" });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "GEMINI_API_KEY sozlanmagan!" });
+    }
+
+    const knownClasses = [
+      '5A', '5B',
+      '6A', '6B',
+      '7A', '7B', '7D',
+      '8A', '8B', '8D',
+      '9A', '9B', '9D', '9A(U)',
+      '10A', '10B', '10D', '10A(U)', '10B(U)',
+      '11A', '11B', '11D', '11A(U)'
+    ];
+
+    const { GoogleGenAI } = await import('@google/genai');
+    const ai = new GoogleGenAI({ apiKey });
+
+    const prompt = `Ushbu hujjatda BUTUN MAKTAB uchun (bir nechta sinf) dars jadvali berilgan. Hujjatni diqqat bilan o'qib, unda uchraydigan HAR BIR sinf uchun alohida jadval tuzing.
+
+Mumkin bo'lgan sinf nomlari FAQAT quyidagilardan iborat (hujjatda faqat shu nomlar bilan mos keladigan sinflarni qidiring, boshqa nom o'ylab topmang):
+${knownClasses.join(', ')}
+
+Javobni FAQAT QUYIDAGI SOF JSON FORMATIDA qaytaring (hech qanday markdown belgilari, izoh yoki ortiqcha matn bo'lmasin). Kalitlar — hujjatda haqiqatda topilgan sinf nomlari (yuqoridagi ro'yxatdan), qiymatlar — kunlar bo'yicha darslar:
+{
+  "5A": {
+    "Dushanba": [{"subject": "Fan nomi", "teacher": "O'qituvchi", "room": "Xona"}],
+    "Seshanba": [],
+    "Chorshanba": [],
+    "Payshanba": [],
+    "Juma": []
+  },
+  "5B": { "Dushanba": [], "Seshanba": [], "Chorshanba": [], "Payshanba": [], "Juma": [] }
+}
+
+Ahamiyat bering:
+1. Hujjatda topilmagan sinflarni javobga umuman qo'shmang.
+2. Katak bo'sh bo'lsa subject, teacher va room qiymatlarini bo'sh matn "" qiling.
+3. Kun nomlari faqat Dushanba, Seshanba, Chorshanba, Payshanba, Juma ko'rinishida bo'lsin.
+4. Har bir sinf uchun barcha 5 kunni ham kiriting (dars yo'q kun uchun bo'sh massiv []).`;
+
+    const filePart = {
+      inlineData: {
+        data: req.file.buffer.toString('base64'),
+        mimeType: req.file.mimetype
+      }
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.6-flash',
+      contents: [prompt, filePart]
+    });
+
+    let text = response.text.trim();
+    text = text.replace(/^```json/i, '').replace(/^```/i, '').replace(/```$/i, '').trim();
+
+    const parsedAll = JSON.parse(text);
+
+    const data = await readData();
+    if (!data.timetable) data.timetable = {};
+    if (!data.lessonCounts) data.lessonCounts = {};
+
+    const filledClasses = [];
+
+    for (const className of Object.keys(parsedAll)) {
+      if (!knownClasses.includes(className)) continue; // noma'lum sinf nomini e'tiborsiz qoldiramiz
+
+      const classTimetable = parsedAll[className];
+      data.timetable[className] = classTimetable;
+
+      if (!data.lessonCounts[className]) data.lessonCounts[className] = {};
+      Object.keys(classTimetable).forEach(day => {
+        data.lessonCounts[className][day] = (classTimetable[day] || []).length || 6;
+      });
+
+      filledClasses.push(className);
+    }
+
+    if (filledClasses.length === 0) {
+      return res.status(422).json({ error: "Hujjatdan hech qanday tanish sinf topilmadi. Fayl sifatini tekshiring yoki sinf nomlari to'g'ri yozilganiga ishonch hosil qiling." });
+    }
+
+    await writeData(data);
+    fs.writeFileSync('./timetable.json', JSON.stringify(data, null, 2));
+
+    res.json({
+      success: true,
+      message: `${filledClasses.length} ta sinf uchun jadval AI orqali to'ldirildi: ${filledClasses.join(', ')}`,
+      classes: filledClasses
+    });
+
+  } catch (error) {
+    console.error("AI Upload-All xatosi:", error);
+    res.status(500).json({
+      error: error.message || "Hujjatni AI orqali tahlil qilishda xatolik yuz berdi."
     });
   }
 });
